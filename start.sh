@@ -27,8 +27,8 @@ iface wlan0 inet static
     dns-nameservers 8.8.8.8
 ' | sudo tee -a /etc/network/interfaces
 
-echo \ '
-country_code=ID
+echo \ 
+'country_code=ID
 interface=wlan0
 hw_mode=g
 channel=7
