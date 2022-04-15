@@ -44,7 +44,7 @@ ssid=raspi
 wpa_passphrase=raspi12345
 ' | sudo tee -a /etc/hostapd/hostapd.conf
 
-sudo awk 'NR==14{print "DAEMON_CONF="/etc/hostapd/hostapd.conf""}1' /etc/default/hostapd
+echo "DAEMON_CONF='/etc/hostapd/hostapd.conf'" | sudo tee -a /etc/default/hostapd
 
 sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
 echo \ '
@@ -54,10 +54,10 @@ bind-interfaces
 server=8.8.8.8
 bogus-priv
 dhcp-range=10.10.10.2,10.10.10.14,255.255.240.0,24h
-' | sudo tee -a /etc/dnsmasq
+' | sudo tee -a /etc/dnsmasq.conf
 
 echo 'Enable IPv4 routing'
-sudo awk 'NR==28{print "net.ipv4.ip_forward=1"}1' /etc/sysctl.conf
+echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 
 # to allow this new network to access internet
 sudo iptables -t nat -A POSTROUTING -o enxb827eb8879e7 -j MASQUERADE
@@ -65,8 +65,6 @@ sudo iptables -A FORWARD -i enxb827eb8879e7 -o wlan0 -m state --state RELATED,ES
 sudo iptables -A FORWARD -i wlan0 -o enxb827eb8879e7 -j ACCEPT
 sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
 sudo netfilter-persistent save
-
-sudo { echo "iptables-restore < /etc/iptables.ipv4.nat"; tail -n +2 /etc/rc.local; }
 
 echo 'Setup WPA is done'
 echo 'Continue to next step'
@@ -76,5 +74,6 @@ sudo apt install python3-pip -y
 pip install --upgrade python-iptables
 
 # next: https://github.com/ldx/python-iptables#:~:text=Introduction-,About%20python%2Diptables,rules%20in%20the%20Linux%20kernel.
+
 
 
