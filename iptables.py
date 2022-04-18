@@ -114,12 +114,12 @@ def ssh_rules():
 #{"in-interface": "wlan0", "protocol": "icmp", "target": "DROP", "counters": [525, 44194]}]
 def block_icmp():
     get_icmp_chain = iptc.Chain("filter", "INPUT")
-    rule_block_login = {
+    rule_block_icmp = {
                         "protocol": "icmp", 
                         "target": "DROP",
                         "in-interface": "wlan0", 
                     }
-    get_icmp_chain.insert_rule("filter", "INPUT", rule_block_login)
+    get_icmp_chain.insert_rule("filter", "INPUT", rule_block_icmp)
 
 if __name__ == "__main__":
     flush_chain()
