@@ -15,7 +15,15 @@ sudo apt install dhcpcd5 -y
 echo 'Ensuring WiFi radio is not blocked on Raspi'
 sudo rfkill unblock wlan
 
-echo 'denyinterfaces wlan0' | sudo tee -a /etc/dhcpcd.conf
+echo 'Assign static IP address to Raspberry Pi and prevent dhcpcd from configuring wlan0'
+echo \ '
+denyinterfaces wlan0
+
+interface enxb827eb8879e7
+static ip_address=192.168.1.100/24
+static routers=192.168.1.1
+static domain_name_servers=192.168.1.1
+' | sudo tee -a /etc/dhcpcd.conf
 
 echo \ '
 allow-hotplug wlan0
@@ -66,11 +74,23 @@ sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
 sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
 sudo netfilter-persistent save
 
+echo 'MaxAuthTries 1' | sudo tee -a /etc/ssh/sshd_config
+# enxb827eb8879e7
+
 echo 'Setup WPA is done'
 echo 'Continue to next step'
 
 echo 'Installing python-iptables'
 sudo apt install python3-pip -y
+sudo apt-get install python3-venv
 pip install --upgrade python-iptables
 
-# next: https://github.com/ldx/python-iptables#:~:text=Introduction-,About%20python%2Diptables,rules%20in%20the%20Linux%20kernel.
+git clone https://github.com/ldx/python-iptables.git
+cd python-iptables
+sudo python3 setup.py build
+sudo python3 -m venv venv
+source venv/bin/activate
+sudo python3 setup.py install
+deactivate
+sudo PATH=$PATH python3 setup.py test
+sudo PATH=$PATH python3
