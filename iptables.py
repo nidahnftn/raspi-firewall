@@ -1,9 +1,9 @@
 import iptc
 import list
-#new file in ports.py
+
 tables = ["filter", "mangle", "raw"]
 chains = ["POSTROUTING", "INPUT", "OUTPUT", "FORWARD"] 
-new_chains = ["SSHATTACK", "PORTATTACK"]
+new_chains = ["SSHATTACK", "PORTATTACK", "UNRECOGDVC", "PINGATTACK"]
 
 def flush_chain():
     try:
@@ -29,14 +29,13 @@ def flush_chain():
 def add_chain():
     for chain in new_chains:
         try:
-                iptc.easy.add_chain("filter", chain)
+            iptc.easy.add_chain("filter", chain)
 
         except iptc.IPTCError as error:
             print(error)
 
 def nat():
     # [{"out-interface": "enxb827eb8879e7", "target": "MASQUERADE", "counters": [995, 151619]}, {"out-interface": "enxb827eb8879e7", "target": "MASQUERADE", "counters": [0, 0]}]
-    #get_nat_chain = iptc.Chain("nat", "POSTROUTING")
     try:
         rule_nat = {
                     "out-interface": "enxb827eb8879e7",
@@ -51,17 +50,18 @@ def nat():
 def forward():
     # [{"out-interface": "wlan0", "state": {"state": "RELATED,ESTABLISHED"}, "in-interface": "enxb827eb8879e7", "target": "ACCEPT", "counters": [13411, 10584119]}, 
     # {"out-interface": "enxb827eb8879e7", "in-interface": "wlan0", "target": "ACCEPT", "counters": [11969, 2618192]}]
-    #get_ff_chain = iptc.Chain("filter", "FORWARD")
     try:
         rule_forward = [{"rule": [
                                     {
                                         "out-interface": "enxb827eb8879e7",
                                         "in-interface": "wlan0",
+                                        "dst": "192.168.1.100/32"
                                         "target": "ACCEPT"
                                     },
                                     {
                                         "out-interface": "wlan0",
                                         "in-interface": "enxb827eb8879e7",
+                                        "src": "192.168.1.100/32",
                                         "target": "ACCEPT",
                                         "state": {"state": "RELATED,ESTABLISHED"}
                                     }
@@ -76,9 +76,47 @@ def forward():
     except iptc.IPTCError as error:
         print(error)
 
-# disable icmp request for raspi and iot devices
+def connection_attempt():
+    try:
+        # {"target": "DROP", "counters": [113, 6300], "mac": {"mac-source": ["!", "5C:FB:3A:8E:45:EB"]}
+        for mac in list.WHITELIST_MAC:
+            rule_accept_connection = {
+                                    "target": "ACCEPT",
+                                    "mac": {"mac-source": mac},
+                                    #"mac": {"mac-source": ["!", mac]},
+                                }
+
+            iptc.easy.insert_rule("filter", "INPUT", rule_accept_connection)
+            print("Successfully added rule: %s." %rule_accept_connection)
+
+        rule_add_log = [{"rule": [
+                                    {"target": "DROP"},
+                                    {"target":
+                                        {"LOG": {
+                                            "log_prefix": "Connection attempt is detected!",
+                                            "log_level": "7"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                    ]
+        for rules in rule_add_log:
+            for rule in rules["rule"]:
+                iptc.easy.insert_rule("filter", "UNRECOGDVC", rule)
+                print("Successfully added rule: %s." %rule)
+
+        rule_block_connection = {
+                                "target": "UNRECOGDVC"
+                            }
+
+        iptc.easy.insert_rule("filter", "INPUT", rule_block_connection)
+        print("Successfully added rule: %s." %rule_block_connection)
+
+    except iptc.IPTCError as error:
+        print(error)
+
 def ssh_rules():
-    #get_ssh_chain = iptc.Chain("filter", "SSHATTACK")
     try:
         rule_add_log = [{"rule": [
                                     {"target": "DROP"},
@@ -97,8 +135,7 @@ def ssh_rules():
                 iptc.easy.insert_rule("filter", "SSHATTACK", rule)
                 print("Successfully added rule: %s." %rule)
 
-        #get_fi_chain = iptc.Chain("filter", "INPUT")
-        for ip in list.WHITELIST_ADDRESS:
+        for ip in list.ALLOWED_SSH:
             rule_block_login = [{"rule":[
                                             {
                                                 "protocol": "tcp",
@@ -139,21 +176,44 @@ def ssh_rules():
 #{"in-interface": "wlan0", "protocol": "icmp", "target": "DROP", "counters": [525, 44194]}]
 #{"target": "DROP", "counters": [262, 22008], "protocol": "icmp", "icmp": {"icmp-type": "8"}}]
 def block_icmp():
-    #get_icmp_chain = iptc.Chain("filter", "INPUT")
+    #{"icmp": {"icmp-type": "8"}, "counters": [0, 0], "dst": "192.168.1.100/32", "target": "DROP", "protocol": "icmp"}
     try:
-        rule_block_icmp = {
-                            "protocol": "icmp", 
-                            "target": "DROP",
-                            "in-interface": "wlan0", 
-                        }
-        iptc.easy.insert_rule("filter", "INPUT", rule_block_icmp)
-        print("Successfully added rule: %s." %rule_block_icmp)
+        rule_add_log = [{"rule": [
+                                    {"target": "DROP"},
+                                    {"target":
+                                        {"LOG": {
+                                            "log_prefix": "PING attempt is detected!",
+                                            "log_level": "7"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                    ]
+        for rules in rule_add_log:
+            for rule in rules["rule"]:
+                iptc.easy.insert_rule("filter", "PINGATTACK", rule)
+                print("Successfully added rule: %s." %rule)
+
+        for ip in list.WHITELIST_ADDRESS:
+            rule_block_icmp = {
+                                "protocol": "icmp",
+                                "icmp": {"icmp-type": "8"},
+                                "dst": ip,
+                                "target": "PINGATTACK",
+                            }
+            iptc.easy.insert_rule("filter", "INPUT", rule_block_icmp)
+            print("Successfully added rule: %s." %rule_block_icmp)
     
     except iptc.IPTCError as error:
         print(error)
 
+#[{"counters": [0, 0], "target": "DROP", "tcp": {"dport": "80"}, "protocol": "tcp"}]
+# output
+# {"protocol": "tcp", "target": "DROP", "counters": [0, 0], "tcp": {"dport": "80"}}
+# input 
+# {"protocol": "tcp", "target": "DROP", "counters": [0, 0], "tcp": {"sport": "80"}}
 def port_rules():
-    #get_port_chain = iptc.Chain("filter", "PORTATTACK")
     try:
         rule_add_log = [{"rule": [
                                     {"target": "DROP"},
@@ -172,7 +232,6 @@ def port_rules():
                 iptc.easy.insert_rule("filter", "PORTATTACK", rule)
                 print("Successfully added rule: %s." %rule)
 
-        #get_fi_chain = iptc.Chain("filter", "INPUT")
         for port in list.OUTPUT_ALLOWED_UDP_SPORTS:
             incoming_udp = [{"rule":[
                                             {
@@ -216,7 +275,6 @@ def port_rules():
                     print("Successfully added rule: %s." %rule)
 
         #{"tcp": {"dport": ["!", "22"]}, "target": "DROP", "counters": [10, 400], "protocol": "tcp"}
-        #get_fo_chain = iptc.Chain("filter", "OUTPUT")
         for port in list.INPUT_ALLOWED_TCP_DPORTS:
             outcoming_tcp = [{"rule":[
                                             {
@@ -244,10 +302,10 @@ def port_rules():
 if __name__ == "__main__":
     add_chain()
     flush_chain()
-    # nat()
     forward()
     ssh_rules()
     block_icmp()
+    connection_attempt()
     #port_rules()
 
 #tcp&udp - input
