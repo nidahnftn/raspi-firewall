@@ -8,7 +8,8 @@ echo 'Installing WAP package'
 sudo apt install hostapd -y
 sudo systemctl unmask hostapd
 sudo systemctl enable hostapd
-sudo apt install dnsmasq -y
+# sudo apt install dnsmasq -y
+# sudo systemctl enable dnsmasq
 sudo DEBIAN_FRONTEND=noninteractive apt install -y netfilter-persistent iptables-persistent
 sudo apt install dhcpcd5 -y
 
@@ -23,6 +24,9 @@ interface enxb827eb8879e7
 static ip_address=192.168.1.100/24
 static routers=192.168.1.1
 static domain_name_servers=192.168.1.1
+
+noipv6rs
+noipv6
 ' | sudo tee -a /etc/dhcpcd.conf
 
 echo \ '
@@ -35,8 +39,7 @@ iface wlan0 inet static
     dns-nameservers 8.8.8.8
 ' | sudo tee -a /etc/network/interfaces
 
-echo \ 
-'country_code=ID
+echo 'country_code=ID
 interface=wlan0
 hw_mode=g
 channel=7
@@ -49,48 +52,46 @@ wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 ssid=raspi
-wpa_passphrase=thisispassword123
+wpa_passphrase=raspi12345
 ' | sudo tee -a /etc/hostapd/hostapd.conf
 
 echo "DAEMON_CONF='/etc/hostapd/hostapd.conf'" | sudo tee -a /etc/default/hostapd
 
-sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
-echo \ '
-interface=wlan0
-listen-address=10.10.10.1
-bind-interfaces
-server=8.8.8.8
-bogus-priv
-dhcp-range=10.10.10.2,10.10.10.14,255.255.240.0,24h
-' | sudo tee -a /etc/dnsmasq.conf
+# sudo mv /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
+# echo 'interface=wlan0
+# listen-address=10.10.10.1
+# bind-interfaces
+# server=8.8.8.8
+# bogus-priv
+# dhcp-range=10.10.10.2,10.10.10.14,255.255.240.0,24h
+# ' | sudo tee -a /etc/dnsmasq.conf
 
 echo 'Enable IPv4 routing'
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 
+echo "Disable ipv6"
+echo \ '
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+net.ipv6.conf.lo.disable_ipv6=1
+' | sudo tee -a /etc/sysctl.conf
+
+echo "Restarting networking..."
+sudo systemctl restart networking
+sudo systemctl restart dhcpcd
+sudo systemctl restart systemd-sysctl.service
+# sudo systemctl restart dnsmasq
+
 # to allow this new network to access internet
-sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
+sudo iptables -F
+sudo iptables -t nat -A POSTROUTING -o enxb827eb8879e7 -j MASQUERADE
+sudo iptables -A FORWARD -i enxb827eb8879e7 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -A FORWARD -i wlan0 -o enxb827eb8879e7 -j ACCEPT
 sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
 sudo netfilter-persistent save
 
-echo 'MaxAuthTries 1' | sudo tee -a /etc/ssh/sshd_config
+#echo 'MaxAuthTries 1' | sudo tee -a /etc/ssh/sshd_config
 # enxb827eb8879e7
 
 echo 'Setup WPA is done'
-echo 'Continue to next step'
-
-echo 'Installing python-iptables'
-sudo apt install python3-pip -y
-sudo apt-get install python3-venv
-pip install --upgrade python-iptables
-
-git clone https://github.com/ldx/python-iptables.git
-cd python-iptables
-sudo python3 setup.py build
-sudo python3 -m venv venv
-source venv/bin/activate
-sudo python3 setup.py install
-deactivate
-sudo PATH=$PATH python3 setup.py test
-sudo PATH=$PATH python3
+echo 'Continue to next step. Please reboot first.'

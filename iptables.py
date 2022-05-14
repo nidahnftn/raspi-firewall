@@ -55,7 +55,7 @@ def forward():
                                     {
                                         "out-interface": "enxb827eb8879e7",
                                         "in-interface": "wlan0",
-                                        "dst": "192.168.1.100/32"
+                                        "dst": "192.168.1.100/32",
                                         "target": "ACCEPT"
                                     },
                                     {
@@ -76,19 +76,13 @@ def forward():
     except iptc.IPTCError as error:
         print(error)
 
+#input
+#{"set": {"match-set": ["blacklist", "src"]}, "counters": [402, 27609], "target": "CONNECTIONATTEMPT"}
+#forward
+#[{"set": {"match-set": ["blacklist", "src"]}, "counters": [689, 53663], "target": "CONNECTIONATTEMPT"}, {"set": {"match-set": ["blacklist", "src"]}, "counters": [252, 34577], "target": "DROP"}
+
 def connection_attempt():
     try:
-        # {"target": "DROP", "counters": [113, 6300], "mac": {"mac-source": ["!", "5C:FB:3A:8E:45:EB"]}
-        for mac in list.WHITELIST_MAC:
-            rule_accept_connection = {
-                                    "target": "ACCEPT",
-                                    "mac": {"mac-source": mac},
-                                    #"mac": {"mac-source": ["!", mac]},
-                                }
-
-            iptc.easy.insert_rule("filter", "INPUT", rule_accept_connection)
-            print("Successfully added rule: %s." %rule_accept_connection)
-
         rule_add_log = [{"rule": [
                                     {"target": "DROP"},
                                     {"target":
@@ -106,12 +100,15 @@ def connection_attempt():
                 iptc.easy.insert_rule("filter", "UNRECOGDVC", rule)
                 print("Successfully added rule: %s." %rule)
 
-        rule_block_connection = {
-                                "target": "UNRECOGDVC"
-                            }
-
-        iptc.easy.insert_rule("filter", "INPUT", rule_block_connection)
-        print("Successfully added rule: %s." %rule_block_connection)
+        #{"counters": [0, 0], "set": {"match-set": ["blacklist", "src"]}, "target": "CONNECTIONATTEMPT"}
+        for ip in list.BLACKLIST_ADDRESS:
+            rule_block_connection = {
+                                        "target": "UNRECOGDVC",
+                                        "src": ip,
+                                    }
+            for rule in rule_block_connection:
+                iptc.easy.insert_rule("filter", "INPUT", rule)
+                print("Successfully added rule: %s." %rule)
 
     except iptc.IPTCError as error:
         print(error)
@@ -208,7 +205,6 @@ def block_icmp():
     except iptc.IPTCError as error:
         print(error)
 
-#[{"counters": [0, 0], "target": "DROP", "tcp": {"dport": "80"}, "protocol": "tcp"}]
 # output
 # {"protocol": "tcp", "target": "DROP", "counters": [0, 0], "tcp": {"dport": "80"}}
 # input 
@@ -219,7 +215,7 @@ def port_rules():
                                     {"target": "DROP"},
                                     {"target":
                                         {"LOG": {
-                                            "log_prefix": "Possible PORT attack!",
+                                            "log_prefix": "Denied http request!",
                                             "log_level": "7"
                                             }
                                         }
@@ -232,69 +228,45 @@ def port_rules():
                 iptc.easy.insert_rule("filter", "PORTATTACK", rule)
                 print("Successfully added rule: %s." %rule)
 
-        for port in list.OUTPUT_ALLOWED_UDP_SPORTS:
-            incoming_udp = [{"rule":[
-                                            {
-                                                "protocol": "udp",
-                                                "target": "PORTATTACK",
-                                                "udp": {"sport": ["!", port]}, 
-                                            },
-                                            {
-                                                "state": {"state": "NEW"},
-                                                "protocol": "udp",
-                                                "udp": {"sport": ["!", port]},
-                                            }
-                                        ]
+        outcoming_tcp = [{"rule":[
+                                    {
+                                        "protocol": "tcp",
+                                        "target": "PORTATTACK",
+                                        "tcp": {"dport": "80"}, 
+                                    },
+                                    {
+                                        "state": {"state": "NEW"},
+                                        "protocol": "tcp",
+                                        "tcp": {"dport": "80"},
                                     }
                                 ]
-
-            for rules in incoming_udp:
-                for rule in rules["rule"]:
-                    iptc.easy.insert_rule("filter", "OUTPUT", rule)
-                    print("Successfully added rule: %s." %rule)
-
-        for port in list.OUTPUT_ALLOWED_TCP_SPORTS:
-            incoming_tcp = [{"rule":[
-                                            {
-                                                "protocol": "tcp",
-                                                "target": "PORTATTACK",
-                                                "tcp": {"sport": ["!", port]}, 
-                                            },
-                                            {
-                                                "state": {"state": "NEW"},
-                                                "protocol": "tcp",
-                                                "tcp": {"sport": ["!", port]},
-                                            }
-                                        ]
-                                    }
-                                ]
-
-            for rules in incoming_tcp:
-                for rule in rules["rule"]:
-                    iptc.easy.insert_rule("filter", "OUTPUT", rule)
-                    print("Successfully added rule: %s." %rule)
+                            }
+                        ]
+        for rules in outcoming_tcp:
+            for rule in rules["rule"]:
+                iptc.easy.insert_rule("filter", "OUTPUT", rule)
+                print("Successfully added rule: %s." %rule)
 
         #{"tcp": {"dport": ["!", "22"]}, "target": "DROP", "counters": [10, 400], "protocol": "tcp"}
-        for port in list.INPUT_ALLOWED_TCP_DPORTS:
-            outcoming_tcp = [{"rule":[
-                                            {
-                                                "protocol": "tcp",
-                                                "target": "PORTATTACK",
-                                                "tcp": {"dport": ["!", port]},
-                                            },
-                                            {
-                                                "state": {"state": "NEW"},
-                                                "protocol": "tcp",
-                                                "tcp": {"dport": ["!", port]},
-                                            }
-                                        ]
-                                    }
-                                ]
+        incoming_tcp = [{"rule":[
+                                        {
+                                            "protocol": "tcp",
+                                            "target": "PORTATTACK",
+                                            "tcp": {"sport": "80"},
+                                        },
+                                        {
+                                            "state": {"state": "NEW"},
+                                            "protocol": "tcp",
+                                            "tcp": {"sport": "80"},
+                                        }
+                                    ]
+                                }
+                            ]
 
-            for rules in outcoming_tcp:
-                for rule in rules["rule"]:
-                    iptc.easy.insert_rule("filter", "INPUT", rule)
-                    print("Successfully added rule: %s." %rule)
+        for rules in incoming_tcp:
+            for rule in rules["rule"]:
+                iptc.easy.insert_rule("filter", "INPUT", rule)
+                print("Successfully added rule: %s." %rule)
 
     except iptc.IPTCError as error:
         print(error)
@@ -305,8 +277,8 @@ if __name__ == "__main__":
     forward()
     ssh_rules()
     block_icmp()
-    connection_attempt()
     #port_rules()
+    connection_attempt()
 
 #tcp&udp - input
 #{"in-interface": "wlan0", "counters": [245, 15528], "protocol": "tcp", "target": "ACCEPT", "tcp": {"dport": "22"}}, 
