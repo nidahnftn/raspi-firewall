@@ -106,9 +106,8 @@ def connection_attempt():
                                         "target": "UNRECOGDVC",
                                         "src": ip,
                                     }
-            for rule in rule_block_connection:
-                iptc.easy.insert_rule("filter", "INPUT", rule)
-                print("Successfully added rule: %s." %rule)
+            iptc.easy.insert_rule("filter", "INPUT", rule_block_connection)
+            print("Successfully added rule: %s." %rule_block_connection)
 
     except iptc.IPTCError as error:
         print(error)

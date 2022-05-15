@@ -38,7 +38,8 @@ Steps:
 25. Start the Filebeat service: sudo service filebeat start
 26. Configure the Filebeat service to start during boot time: sudo systemctl enable filebeat
 27. Now, go to 192.168.1.13:5601 => Analytics => Dashboard. Search Syslog. Your dashboard is ready!
-28. Apply the iptables rule and monitor through Kibana server.
+28. Before applying iptables rule, make sure all main devices are already connected to raspi so we can get their IP address to exclude from blacklist.
+29. Apply the iptables rule and monitor through Kibana server.
 
 
 source:

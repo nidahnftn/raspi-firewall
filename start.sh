@@ -69,18 +69,19 @@ echo "DAEMON_CONF='/etc/hostapd/hostapd.conf'" | sudo tee -a /etc/default/hostap
 echo 'Enable IPv4 routing'
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 
-echo "Disable ipv6"
-echo \ '
-net.ipv6.conf.all.disable_ipv6=1
-net.ipv6.conf.default.disable_ipv6=1
-net.ipv6.conf.lo.disable_ipv6=1
-' | sudo tee -a /etc/sysctl.conf
+# echo "Disable ipv6"
+# echo \ '
+# net.ipv6.conf.all.disable_ipv6=1
+# net.ipv6.conf.default.disable_ipv6=1
+# net.ipv6.conf.lo.disable_ipv6=1
+# ' | sudo tee -a /etc/sysctl.conf
 
 echo "Restarting networking..."
+sudo service hostapd restart
 sudo systemctl restart networking
 sudo systemctl restart dhcpcd
 sudo systemctl restart systemd-sysctl.service
-# sudo systemctl restart dnsmasq
+sudo systemctl restart dnsmasq
 
 # to allow this new network to access internet
 sudo iptables -F
