@@ -18,8 +18,8 @@ Steps:
 8. Check if port 514 is listening by: netstat plntu | grep "LISTEN "
 9. On Ubuntu Server, do the same as step #5
 10. Restart rsyslog by: sudo systemctl restart rsyslog.service or sudo service rsyslog restart
-11. On Ubuntu Server, create new file: /etc/rsyslog.d/01-json-template.conf and fill it with 01-json-template.conf
-12. On Ubuntu Server, create new file: /etc/rsyslog.d/60-output.conf and fill it with 60-output.conf
+<!-- 11. On Ubuntu Server, create new file: /etc/rsyslog.d/01-json-template.conf and fill it with 01-json-template.conf -->
+<!-- 12. On Ubuntu Server, create new file: /etc/rsyslog.d/60-output.conf and fill it with 60-output.conf -->
 13. Restart rsyslog by: sudo systemctl restart rsyslog.service or sudo service rsyslog restart
 14. On Ubuntu Server, Create new directory: elk-stack and go in.
 15. On Ubuntu Server, Add docker-compose.yml there.
