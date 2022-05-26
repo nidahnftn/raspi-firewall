@@ -8,8 +8,8 @@ Steps:
 3. Install docker in Ubuntu Server
 4. Install docker-compose in Ubuntu Server
 5. On Raspberry Pi, go to /etc/rsyslog.conf and uncomment:
-    module(load="imtcp")
-    input(type="imtcp" port="514")
+    <!-- module(load="imtcp")
+    input(type="imtcp" port="514") -->
     then add comment to: module(load="imklog" permitnonkernelfacility="on")
 6. On Raspberry Pi, go to /etc/rsyslog.d/50-default.conf and add one line before Log by facility.
     *.*                         @@192.168.1.13:514
